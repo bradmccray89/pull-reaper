@@ -22,6 +22,12 @@ const privateKey = fs.readFileSync(
 const payload = JSON.parse(
   fs.readFileSync(path.join(__dirname, "fixtures/issues.opened.json"), "utf-8"),
 );
+const prPayload = JSON.parse(
+  fs.readFileSync(path.join(__dirname, "fixtures/pull_request.opened.json"), "utf-8"),
+);
+const prPayloadOriginal = JSON.parse(
+  fs.readFileSync(path.join(__dirname, "fixtures/pull_request.opened.json"), "utf-8"),
+);
 
 describe("My Probot app", () => {
   let probot;
@@ -65,9 +71,59 @@ describe("My Probot app", () => {
     assert.deepStrictEqual(mock.pendingMocks(), []);
   });
 
+  test("posts OpenAI inline review comments for pull requests", async () => {
+    process.env.OPENAI_API_KEY = "test";
+
+    const ghMock = nock("https://api.github.com")
+      .post("/app/installations/2/access_tokens")
+      .reply(200, {
+        token: "test",
+        permissions: {
+          issues: "write",
+          pull_requests: "read",
+        },
+      })
+      .get("/repos/hiimbex/testing-things/pulls/1")
+      .reply(200, "diff --git a/file b/file")
+      .post("/repos/hiimbex/testing-things/pulls/1/comments", (body) => {
+        assert.deepEqual(body, {
+          body: "OpenAI review",
+          commit_id: "sha",
+          path: "file",
+          line: 1,
+          side: "RIGHT",
+        });
+        return true;
+      })
+      .reply(200);
+
+    const aiMock = nock("https://api.openai.com")
+      .post("/v1/chat/completions")
+      .reply(200, {
+        choices: [
+          {
+            message: {
+              content: JSON.stringify([
+                { path: "file", line: 1, body: "OpenAI review" },
+              ]),
+            },
+          },
+        ],
+      });
+
+    // stub pull_request.head.sha for commit id
+    prPayload.pull_request.head.sha = "sha";
+    await probot.receive({ name: "pull_request", payload: prPayload });
+
+    assert.deepStrictEqual(ghMock.pendingMocks(), []);
+    assert.deepStrictEqual(aiMock.pendingMocks(), []);
+  });
+
   afterEach(() => {
     nock.cleanAll();
     nock.enableNetConnect();
+    delete process.env.OPENAI_API_KEY;
+    Object.assign(prPayload, prPayloadOriginal);
   });
 });
 

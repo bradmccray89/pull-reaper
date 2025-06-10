@@ -1,0 +1,14 @@
+{
+  "action": "opened",
+  "pull_request": {
+    "number": 1,
+    "user": { "login": "hiimbex" },
+    "head": { "ref": "feature-branch" },
+    "base": { "ref": "main" }
+  },
+  "repository": {
+    "name": "testing-things",
+    "owner": { "login": "hiimbex" }
+  },
+  "installation": { "id": 2 }
+}
