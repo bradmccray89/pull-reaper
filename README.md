@@ -4,6 +4,8 @@
 
 ## Setup
 
+The application code resides in the `src` directory, with event handlers and services organized for easier maintenance.
+
 ```sh
 # Install dependencies
 npm install
