@@ -11,21 +11,6 @@ export default (app) => {
       body: 'Thanks for opening this issue!',
     });
 
-    console.log('Issue opened:', issueComment);
-
-    const codeSnippet = `
-      function example() {
-        console.log("This is a sample code snippet.");
-        console.log("This line is fine.");
-        console.log("This line has an error.");
-      }
-    `;
-
-    const issueCommentWithCode = {
-      ...issueComment,
-      body: `${issueComment.body}\n\nHere is a code snippet:\n\`\`\`javascript\n${codeSnippet}\n\`\`\``,
-    };
-
     return context.octokit.issues.createComment(issueComment);
   });
 
@@ -50,12 +35,23 @@ export default (app) => {
 
         const diff = diffRes.data;
         const payload = {
-          model: 'gpt-4',
+          model: 'gpt-4.1',
           messages: [
             {
               role: 'system',
-              content:
-                'You are a code review bot. Analyze the following git diff and respond with JSON array of objects with `path`, `line`, and `body` describing issues. Only return JSON.',
+              content: `
+      You are a senior code review assistant.
+      
+      Analyze the following git diff and return a JSON array of objects with \`path\`, \`line\`, and \`body\`.
+      
+      Only include comments for code that:
+      - Is incorrect, buggy, insecure, or likely to cause problems.
+      - Clearly violates best practices **in a way that could cause real issues**.
+      
+      Ignore minor stylistic issues or subjective preferences.
+      
+      Respond with JSON only. No explanation or extra text.
+            `.trim(),
             },
             { role: 'user', content: diff.slice(0, 20000) },
           ],
